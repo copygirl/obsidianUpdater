@@ -8,8 +8,11 @@ namespace obsidianUpdater
 	{
 		public static void Main(string[] arguments)
 		{
-			Stack<string> args = new Stack<string>(arguments.Reverse());
-			new Program().Handle(args);
+			var data = Data.Load("obsidian.json");
+			data.Save();
+
+			//Stack<string> args = new Stack<string>(arguments.Reverse());
+			//new Program().Handle(args);
 		}
 
 		private Program() : base("obsidian", null)
@@ -34,10 +37,9 @@ namespace obsidianUpdater
 				} catch (InvalidUsageException e) {
 					Console.WriteLine("Error: {0}", e.Message);
 					Console.WriteLine("Usage: {0}", e.Action.GetUsingHelp());
-					if (!e.Action.IsRoot)
-						Console.WriteLine("Try '{0} help {1}' for more information.", Name, e.Action.FullNameWithoutRoot);
-					else 
-						Console.WriteLine("Try '{0} help' for more information.", Name);
+					Console.WriteLine(e.Action.IsRoot
+						? "Try '{0} help' for more information."
+						: "Try '{0} help {1}' for more information.", Name, e.Action.FullNameWithoutRoot);
 				} catch (Exception e) {
 					Console.WriteLine("Error: {0}", e.Message);
 					Console.WriteLine("Try '{0} help' for more information.", Name);
