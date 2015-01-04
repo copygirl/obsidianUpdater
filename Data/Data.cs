@@ -15,9 +15,9 @@ namespace obsidianUpdater
 		
 		private string _file;
 
-		[DataMember(Order = 0, EmitDefaultValue = false)]
+		[DataMember(Order = 0, Name = "mods", EmitDefaultValue = false)]
 		public NullableCollection<Mod> Mods { get; set; }
-		[DataMember(Order = 1, EmitDefaultValue = false)]
+		[DataMember(Order = 1, Name = "players", EmitDefaultValue = false)]
 		public NullableCollection<Player> Players { get; set; }
 
 		public static Data Load(string file)
