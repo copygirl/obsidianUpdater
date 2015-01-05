@@ -8,11 +8,8 @@ namespace obsidianUpdater
 	{
 		public static void Main(string[] arguments)
 		{
-			var data = Data.Load("obsidian.json");
-			data.Save();
-
-			//Stack<string> args = new Stack<string>(arguments.Reverse());
-			//new Program().Handle(args);
+			Stack<string> args = new Stack<string>(arguments.Reverse());
+			new Program().Handle(args);
 		}
 
 		private Program() : base("obsidian", null)
