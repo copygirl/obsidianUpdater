@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace obsidianUpdater
+namespace obsidianUpdater.Actions
 {
 	public class Mods : ProgramAction
 	{

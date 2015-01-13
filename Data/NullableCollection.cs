@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace obsidianUpdater
+namespace obsidianUpdater.Data
 {
 	public class NullableCollection<T> : HashSet<T>
 	{

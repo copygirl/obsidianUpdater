@@ -1,8 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Runtime.Serialization;
 
-namespace obsidianUpdater
+namespace obsidianUpdater.Data
 {
 	[DataContract]
 	public class Mod

@@ -12,7 +12,10 @@ namespace obsidianUpdater
 		public ProgramAction Parent { get; private set; }
 		public string FullName { get; private set; }
 		public string FullNameWithoutRoot { get; private set; }
+
+		public bool IsHidden { get; protected set; }
 		public string[] Help { get; protected set; }
+		public string[] Aliases { get; protected set; }
 
 		public bool IsRoot { get { return (Parent != null); } }
 		public bool HasSubActions { get { return (_actions.Count > 0); } }
@@ -39,6 +42,9 @@ namespace obsidianUpdater
 		protected void AddSubAction(ProgramAction action)
 		{
 			_actions[action.Name] = action;
+			if (Aliases != null)
+				foreach (var alias in Aliases)
+					_actions[alias] = action;
 		}
 
 		public virtual void Handle(Stack<string> args)

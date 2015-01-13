@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace obsidianUpdater
+namespace obsidianUpdater.Actions
 {
 	public class Help : ProgramAction
 	{
 		public Help(ProgramAction parent) : base("help", parent)
 		{
 			Help = new string[]{ "Displays this message or information on an action." };
+			Aliases = new string[]{ "-help", "--help", "-?" };
 		}
 
 		public override void Handle(Stack<string> args)
@@ -17,7 +18,7 @@ namespace obsidianUpdater
 				string name = args.Pop().ToLowerInvariant();
 				string fullName = ((action != Parent) ? (action.FullNameWithoutRoot + " " + name) : name);
 				action = action[name];
-				if (action == null)
+				if ((action == null) || action.IsHidden)
 					throw new ArgumentException(String.Format("No help available for '{0}'.", fullName));
 			}
 			if (action == this)
@@ -33,7 +34,8 @@ namespace obsidianUpdater
 					Console.WriteLine("  " + s);
 
 			foreach (var a in action)
-				Console.WriteLine("> " + a.GetLongHelp());
+				if (!a.IsHidden)
+					Console.WriteLine("> " + a.GetLongHelp());
 
 			if (action.HasSubActions)
 				Console.WriteLine("Try '{0} help{1} <action>' for more information.",

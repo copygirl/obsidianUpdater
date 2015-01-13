@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using obsidianUpdater.Actions;
+using obsidianUpdater.Monitor;
 
 namespace obsidianUpdater
 {
@@ -19,6 +21,7 @@ namespace obsidianUpdater
 			AddSubAction(new Players(this));
 			AddSubAction(new Mods(this));
 			AddSubAction(new Help(this));
+			AddSubAction(new MonitorAction(this));
 
 			Help = new string[] {
 				"Handles various actions for the obsidian Minecraft server,",
@@ -38,7 +41,12 @@ namespace obsidianUpdater
 						? "Try '{0} help' for more information."
 						: "Try '{0} help {1}' for more information.", Name, e.Action.FullNameWithoutRoot);
 				} catch (Exception e) {
-					Console.WriteLine("Error: {0}", e.Message);
+					#if DEBUG
+					object error = e;
+					#else
+					object error = e.Message;
+					#endif
+					Console.WriteLine("Error: {0}", error);
 					Console.WriteLine("Try '{0} help' for more information.", Name);
 				}
 			} else {

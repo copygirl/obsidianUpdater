@@ -40,14 +40,21 @@
     <Compile Include="Actions\Mods.cs" />
     <Compile Include="Actions\Players.cs" />
     <Compile Include="Actions\Setup.cs" />
-    <Compile Include="Data\Data.cs" />
     <Compile Include="Data\Player.cs" />
     <Compile Include="Data\Mod.cs" />
     <Compile Include="Data\NullableCollection.cs" />
+    <Compile Include="Data\ProgramData.cs" />
+    <Compile Include="Monitor\MonitorClient.cs" />
+    <Compile Include="Monitor\MonitorServer.cs" />
+    <Compile Include="Monitor\MonitorAction.cs" />
+    <Compile Include="Monitor\ServerStatus.cs" />
+    <Compile Include="Utility\Constants.cs" />
+    <Compile Include="Utility\EventExtensions.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <Folder Include="Actions\" />
     <Folder Include="Data\" />
+    <Folder Include="Utility\" />
   </ItemGroup>
 </Project>
