@@ -50,6 +50,7 @@
     <Compile Include="Monitor\ServerStatus.cs" />
     <Compile Include="Utility\Constants.cs" />
     <Compile Include="Utility\EventExtensions.cs" />
+    <Compile Include="ActionParameter.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

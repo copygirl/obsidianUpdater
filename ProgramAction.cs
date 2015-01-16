@@ -6,7 +6,11 @@ namespace obsidianUpdater
 {
 	public abstract class ProgramAction : IEnumerable<ProgramAction>
 	{
-		private readonly IDictionary<string, ProgramAction> _actions = new Dictionary<string, ProgramAction>();
+		private readonly ICollection<ProgramAction> _actions = new List<ProgramAction>();
+		private readonly ICollection<ActionParameter> _parameters = new List<ActionParameter>();
+
+		private readonly IDictionary<string, ProgramAction> _actionLookup = new Dictionary<string, ProgramAction>();
+		private readonly IDictionary<string, ActionParameter> _parameterLookup = new Dictionary<string, ActionParameter>();
 
 		public string Name { get; private set; }
 		public ProgramAction Parent { get; private set; }
@@ -18,12 +22,14 @@ namespace obsidianUpdater
 		public string[] Aliases { get; protected set; }
 
 		public bool IsRoot { get { return (Parent != null); } }
-		public bool HasSubActions { get { return (_actions.Count > 0); } }
+		public bool HasSubActions { get { return (_actionLookup.Count > 0); } }
+		public bool HasParameters { get { return (_parameterLookup.Count > 0); } }
+		public bool HasRequiredParameters { get; private set; }
 
 		public ProgramAction this[string name] {
 			get {
 				ProgramAction action;
-				return (_actions.TryGetValue(name.ToLowerInvariant(), out action) ? action : null);
+				return (_actionLookup.TryGetValue(name.ToLowerInvariant(), out action) ? action : null);
 			}
 		}
 
@@ -41,10 +47,24 @@ namespace obsidianUpdater
 
 		protected void AddSubAction(ProgramAction action)
 		{
-			_actions[action.Name] = action;
-			if (Aliases != null)
-				foreach (var alias in Aliases)
-					_actions[alias] = action;
+			_actions.Add(action);
+			_actionLookup[action.Name] = action;
+			if (action.Aliases != null)
+				foreach (var alias in action.Aliases)
+					_actionLookup[alias] = action;
+		}
+
+		protected void AddParameter(ActionParameter parameter)
+		{
+			_parameters.Add(parameter);
+			_parameterLookup[parameter.Name] = parameter;
+			if (parameter.Alias != null)
+				_parameterLookup[parameter.Alias] = parameter;
+		}
+		protected void AddParameters(params ActionParameter[] parameters)
+		{
+			foreach (var param in parameters)
+				AddParameter(param);
 		}
 
 		public virtual void Handle(Stack<string> args)
@@ -58,6 +78,35 @@ namespace obsidianUpdater
 			if ((action = this[name]) == null)
 				throw new InvalidUsageException(this, String.Format("Unknown action '{0}'.", name.ToLowerInvariant()));
 			action.Handle(args);
+		}
+
+		protected void HandleParameters(Stack<string> args)
+		{
+			var parameters = new List<ActionParameter>(_parameters);
+			foreach (var param in parameters)
+				param.Reset();
+			
+			while (args.Count > 0) {
+				var parameterName = args.Pop();
+				if (!parameterName.StartsWith(ActionParameter.PREFIX))
+					throw new InvalidUsageException(this, String.Format("Expected a parameter, got '{0}'.", parameterName));
+				parameterName = parameterName.Substring(1);
+
+				ActionParameter parameter;
+				if (!_parameterLookup.TryGetValue(parameterName, out parameter))
+					throw new InvalidUsageException(this, String.Format("Unknown parameter '{0}'.", parameterName));
+
+				if (!parameters.Remove(parameter))
+					throw new InvalidUsageException(this, String.Format("Duplicate parameter '{0}'.", parameterName));
+
+				var isNextValue = (args.Count > 0) && !args.Peek().StartsWith(ActionParameter.PREFIX);
+				var nextValue = isNextValue ? args.Pop() : null;
+				parameter.Handle(nextValue);
+			}
+
+			var missing = parameters.Where(param => param.IsRequired).Select(m => ActionParameter.PREFIX + m.Name);
+			if (missing.Count() > 0)
+				throw new InvalidUsageException(this, String.Format("Missing required parameter(s) {0}.", String.Join(", ", missing)));
 		}
 
 		public virtual string GetShortHelp()
@@ -80,7 +129,7 @@ namespace obsidianUpdater
 
 		public IEnumerator<obsidianUpdater.ProgramAction> GetEnumerator()
 		{
-			return _actions.Values.GetEnumerator();
+			return _actions.GetEnumerator();
 		}
 
 		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
