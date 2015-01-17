@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -11,7 +12,7 @@ namespace obsidianUpdater.Monitor
 {
 	public class MonitorServer
 	{
-		private readonly int RECENT_OUTPUT_LINES = 100;
+		private readonly int RECENT_OUTPUT_LINES = 1024;
 
 		private readonly object _outputLock = new object();
 
@@ -61,12 +62,14 @@ namespace obsidianUpdater.Monitor
 		private async Task AcceptClientsAsync(TcpListener listener, CancellationToken ct)
 		{
 			while (!ct.IsCancellationRequested) {
-				var tcpClient = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
-				var client = new Client(_monitor, tcpClient);
-				_clients.Add(client);
-				client.OnDisconnect += () => _clients.Remove(client);
-				client.OnMessage += (line) => HandleMessage(client, line);
-				client.ReceiveMessages(ct);
+				try {
+					var tcpClient = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
+					var client = new Client(_monitor, tcpClient);
+					_clients.Add(client);
+					client.OnDisconnect += () => _clients.Remove(client);
+					client.OnMessage += (line) => HandleMessage(client, line);
+					client.ReceiveMessagesAsync(ct);
+				} catch (SocketException) {  }
 			}
 		}
 
@@ -79,14 +82,18 @@ namespace obsidianUpdater.Monitor
 				case "restart":
 					_monitor.Restart();
 					break;
-				case "output":
-					client.ReceivesOutput = true;
-					lock (_outputLock)
-						foreach (string output in _recentOutput)
-							client.Output.WriteLine("output=" + output);
-					break;
 				default:
-					if (line.StartsWith("command="))
+					if (line.StartsWith("output=")) {
+						client.ReceivesOutput = true;
+						var linesStr = line.Substring("output=".Length);
+						int lines = 0;
+						int.TryParse(linesStr, out lines);
+						lines = Math.Min(lines, _recentOutput.Count);
+						if (lines > 0)
+							lock (_outputLock)
+								foreach (string output in _recentOutput.Skip(_recentOutput.Count - lines))
+									client.Output.WriteLine("output=" + output);
+					} else if (line.StartsWith("command="))
 						_monitor.Command(line.Substring("command=".Length));
 					break;
 			}
@@ -115,7 +122,8 @@ namespace obsidianUpdater.Monitor
 				Input = new StreamReader(stream);
 				Output = new StreamWriter(stream){ AutoFlush = true };
 
-				Output.WriteLine("status=" + monitor.Status + ":" + monitor.LastStatusString);
+				try { Output.WriteLine("status=" + monitor.Status + ":" + monitor.LastStatusString); }
+				catch (IOException) {  }
 			}
 
 			public void Disconnect()
@@ -128,24 +136,27 @@ namespace obsidianUpdater.Monitor
 				}
 			}
 
-			public async void ReceiveMessages(CancellationToken ct)
+			public async void ReceiveMessagesAsync(CancellationToken ct)
 			{
 				while (Connected && !ct.IsCancellationRequested) {
 					try {
 						var timeout = Task.Delay(TimeSpan.FromSeconds(20));
-						var readLine = Input.ReadLineAsync();
+						var readLine = SaveReadLineAsync();
 				
 						var completed = await Task.WhenAny(timeout, readLine).ConfigureAwait(false);
 						if ((completed != readLine) || (readLine.Result == null))
 							break;
 
 						OnMessage.Raise(readLine.Result);
-					} catch (AggregateException e) {
-						if (!(e.InnerException is IOException))
-							throw;
-					}
+					} catch (IOException) {  }
 				}
 				Disconnect();
+			}
+
+			private async Task<string> SaveReadLineAsync()
+			{
+				try { return await Input.ReadLineAsync(); }
+				catch (IOException) { return null; }
 			}
 		}
 	}

@@ -32,11 +32,11 @@ namespace obsidianUpdater.Monitor
 
 			_monitorServer = new MonitorServer(this);
 			_monitorServer.Start();
-			_startupProgress = 0;
 
 			while (true) {
 				var data = ProgramData.Load();
 				ChangeStatus(ServerStatus.Starting, "");
+				_startupProgress = 0;
 
 				using (var process = StartServerProcess(data)) {
 					_serverInput = process.StandardInput;
@@ -48,7 +48,7 @@ namespace obsidianUpdater.Monitor
 				if (Status < ServerStatus.Stopped)
 					ChangeStatus(ServerStatus.Stopped, "Server stopped!");
 
-				if (!data.Server.AutoRestart || _restartOnce)
+				if (!data.Server.AutoRestart && !_restartOnce)
 					break;
 				_restartOnce = false;
 			}

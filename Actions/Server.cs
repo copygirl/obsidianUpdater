@@ -31,7 +31,7 @@ namespace obsidianUpdater.Actions
 			}
 
 			using (var process = new Process()) {
-				process.StartInfo = new ProcessStartInfo(file, arguments){ CreateNoWindow = true };
+				process.StartInfo = new ProcessStartInfo(file, arguments);
 				process.Start();
 			}
 		}
@@ -52,7 +52,7 @@ namespace obsidianUpdater.Actions
 		public static MonitorClient ConnectMonitor()
 		{
 			var monitor = new MonitorClient();
-			if (!monitor.Connect().Result)
+			if (!monitor.ConnectAsync().Result)
 				throw new InvalidOperationException("Couldn't connect to server, is it not running?");
 			return monitor;
 		}
@@ -71,7 +71,7 @@ namespace obsidianUpdater.Actions
 
 		public static bool IsServerRunning()
 		{
-			return new MonitorClient().Connect().Result;
+			return new MonitorClient().ConnectAsync().Result;
 		}
 
 
@@ -82,7 +82,7 @@ namespace obsidianUpdater.Actions
 
 			using (var monitor = ConnectMonitor()) {
 				OutputStatusChanges(monitor);
-				monitor.WaitUntilStarted();
+				monitor.WaitForStatus(ServerStatus.Running);
 			}
 		}
 
@@ -91,7 +91,7 @@ namespace obsidianUpdater.Actions
 			using (var monitor = ConnectMonitor()) {
 				OutputStatusChanges(monitor);
 				monitor.Stop();
-				monitor.WaitUntilStopped();
+				monitor.WaitForStatus(ServerStatus.Stopped);
 			}
 		}
 
@@ -100,8 +100,9 @@ namespace obsidianUpdater.Actions
 			using (var monitor = ConnectMonitor()) {
 				OutputStatusChanges(monitor);
 				monitor.Restart();
-				monitor.WaitUntilStopped();
-				monitor.WaitUntilStarted();
+				monitor.WaitForStatus(ServerStatus.Stopped);
+				monitor.WaitUntilRestarted();
+				monitor.WaitForStatus(ServerStatus.Running);
 			}
 		}
 
@@ -109,8 +110,8 @@ namespace obsidianUpdater.Actions
 		{
 			using (var monitor = ConnectMonitor()) {
 				monitor.OutputReceived += (line) => Console.WriteLine(line);
-				monitor.ReceiveOutput();
-				monitor.WaitUntilStopped();
+				monitor.ReceiveOutput(100);
+				monitor.WaitForStatus(ServerStatus.Stopped);
 			}
 		}
 

@@ -28,7 +28,7 @@ namespace obsidianUpdater.Monitor
 		}
 
 
-		public async Task<bool> Connect()
+		public async Task<bool> ConnectAsync()
 		{
 			var timeout = Task.Delay(TimeSpan.FromSeconds(1));
 			var connect = _client.ConnectAsync(IPAddress.Loopback, Constants.MONITOR_PORT);
@@ -64,26 +64,41 @@ namespace obsidianUpdater.Monitor
 		{
 			_writer.WriteLine("command=" + command);
 		}
-		public void ReceiveOutput()
+		public void ReceiveOutput(int recentLines = 0)
 		{
-			_writer.WriteLine("output");
+			_writer.WriteLine("output=" + recentLines);
 		}
 
 
-		public void WaitUntilStarted()
+		public void WaitForStatus(ServerStatus status = ServerStatus.Starting)
 		{
-			while (Connected && (Status < ServerStatus.Running)) {
+			while (Connected && (Status < status)) {
 				try { ParseLine(_reader.ReadLine()); }
 				catch (IOException) { _client.Close(); }
 			}
 		}
-		public void WaitUntilStopped()
+		public void WaitUntilRestarted()
 		{
-			while (Connected && (Status < ServerStatus.Stopped)) {
+			while (Connected && (Status != ServerStatus.Starting)) {
 				try { ParseLine(_reader.ReadLine()); }
 				catch (IOException) { _client.Close(); }
 			}
 		}
+
+		public string ReadOutput() {
+			string output = null;
+			Action<string> action = (line) => output = line;
+			OutputReceived += action;
+			while (Connected) {
+				try { ParseLine(_reader.ReadLine()); }
+				catch (IOException) { _client.Close(); }
+				if (output != null)
+					break;
+			}
+			OutputReceived -= action;
+			return output;
+		}
+
 
 		private void ParseLine(string line)
 		{

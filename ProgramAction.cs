@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace obsidianUpdater
 {
-	public abstract class ProgramAction : IEnumerable<ProgramAction>
+	public abstract class ProgramAction
 	{
 		private readonly ICollection<ProgramAction> _actions = new List<ProgramAction>();
 		private readonly ICollection<ActionParameter> _parameters = new List<ActionParameter>();
@@ -21,10 +21,13 @@ namespace obsidianUpdater
 		public string[] Help { get; protected set; }
 		public string[] Aliases { get; protected set; }
 
-		public bool IsRoot { get { return (Parent != null); } }
-		public bool HasSubActions { get { return (_actionLookup.Count > 0); } }
-		public bool HasParameters { get { return (_parameterLookup.Count > 0); } }
+		public bool IsRoot { get { return (Parent == null); } }
+		public bool HasSubActions { get { return (_actions.Count > 0); } }
+		public bool HasParameters { get { return (_parameters.Count > 0); } }
 		public bool HasRequiredParameters { get; private set; }
+
+		public IEnumerable<ProgramAction> SubActions { get { return _actions; } }
+		public IEnumerable<ActionParameter> Parameters { get { return _parameters; } }
 
 		public ProgramAction this[string name] {
 			get {
@@ -111,7 +114,7 @@ namespace obsidianUpdater
 
 		public virtual string GetShortHelp()
 		{
-			return (HasSubActions ? Name + " " + String.Join("|", this.Select(a => a.Name)) : Name);
+			return (HasSubActions ? Name + " " + String.Join("|", SubActions.Select(a => a.Name)) : Name);
 		}
 
 		public virtual string GetLongHelp()
@@ -123,21 +126,6 @@ namespace obsidianUpdater
 		{
 			return (Parent.IsRoot ? (Parent.FullName + " ") : "") + GetShortHelp();
 		}
-
-
-		#region IEnumerable implementation
-
-		public IEnumerator<obsidianUpdater.ProgramAction> GetEnumerator()
-		{
-			return _actions.GetEnumerator();
-		}
-
-		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-		{
-			return GetEnumerator();
-		}
-
-		#endregion
 
 
 		public class InvalidUsageException : Exception

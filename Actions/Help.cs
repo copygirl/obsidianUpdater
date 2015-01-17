@@ -33,13 +33,29 @@ namespace obsidianUpdater.Actions
 				foreach (var s in action.Help)
 					Console.WriteLine("  " + s);
 
-			foreach (var a in action)
+			if (action.HasSubActions)
+				Console.WriteLine();
+			foreach (var a in action.SubActions)
 				if (!a.IsHidden)
 					Console.WriteLine("> " + a.GetLongHelp());
 
-			if (action.HasSubActions)
+			if (action.HasParameters)
+				Console.WriteLine();
+			foreach (var p in action.Parameters)
+				if (!p.IsHidden) {
+					string line = ActionParameter.PREFIX + p.Name;
+					if (p.Alias != null)
+						line += "," + ActionParameter.PREFIX + p.Alias;
+					if (p.Help != null)
+						line += ": " + p.Help;
+					Console.WriteLine(line);
+				}
+
+			if (action.HasSubActions) {
+				Console.WriteLine();
 				Console.WriteLine("Try '{0} help{1} <action>' for more information.",
 					Parent.FullName, ((action != Parent) ? (" " + action.FullNameWithoutRoot) : ""));
+			}
 		}
 
 		public override string GetShortHelp()

@@ -26,7 +26,15 @@ namespace obsidianUpdater.Data
 			return ((newCollection.Count > 0) ? newCollection : null);
 		}
 
-		public static IEnumerable<T> operator ~(NullableCollection<T> collection)
+		public static NullableCollection<string> FromString(string str, char seperator = ',')
+		{
+			return (!String.IsNullOrEmpty(str) ? new NullableCollection<string>(str.Split(',')) : null);
+		}
+	}
+
+	public static class NullableCollectionExtensions
+	{
+		public static IEnumerable<T> AsEnumerable<T>(this NullableCollection<T> collection)
 		{
 			return ((collection != null) ? collection : Enumerable.Empty<T>());
 		}

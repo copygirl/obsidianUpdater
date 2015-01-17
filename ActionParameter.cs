@@ -13,7 +13,7 @@ namespace obsidianUpdater
 		public string Alias { get; private set; }
 		public bool IsRequired { get; private set; }
 		public bool IsHidden { get; private set; }
-		public string[] Help { get; private set; }
+		public string Help { get; private set; }
 		public Func<string, string> Validator { get; private set; }
 
 		public string Value { get; protected set; }
@@ -24,7 +24,7 @@ namespace obsidianUpdater
 		public ActionParameter(string name,
 		                       ParameterType type = ParameterType.Value, string defaultValue = null,
 		                       string alias = null, bool isHidden = false, bool isRequired = false,
-		                       string[] help = null, Func<string, string> validator = null)
+		                       string help = null, Func<string, string> validator = null)
 		{
 			if (name == null)
 				throw new ArgumentNullException("name");
