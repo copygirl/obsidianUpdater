@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using obsidianUpdater.Data;
 using obsidianUpdater.Monitor;
-using System.Text.RegularExpressions;
 
 namespace obsidianUpdater.Actions
 {
@@ -22,7 +22,6 @@ namespace obsidianUpdater.Actions
 			AddSubAction(new Add(this));
 			AddSubAction(new Remove(this));
 			AddSubAction(new Modify(this));
-			AddSubAction(new Whitelist(this));
 		}
 
 		public override string GetShortHelp()
@@ -111,8 +110,8 @@ namespace obsidianUpdater.Actions
 
 		public class Add : ProgramAction {
 			
-			private ActionParameter _ign     = new ActionParameter("ingame-name", ParameterType.Value,   alias: "ign", help: "Sets the in-game name");
-			private ActionParameter _invited = new ActionParameter("invited",     ParameterType.Enabled, alias: "i",   help: "Set if only invited, not whitelisted");
+			private ActionParameter _ign       = new ActionParameter("ingame-name", ParameterType.Value,   alias: "n", help: "Sets the in-game name");
+			private ActionParameter _whitelist = new ActionParameter("whitelist",   ParameterType.Enabled, alias: "w", help: "Whitelist player");
 
 			private ActionParameter _website = new ActionParameter("website", ParameterType.Value, help: "Sets the website URL");
 			private ActionParameter _twitter = new ActionParameter("twitter", ParameterType.Value, help: "Sets the Twitter name");
@@ -127,10 +126,10 @@ namespace obsidianUpdater.Actions
 
 			public Add(ProgramAction parent) : base("add", parent)
 			{
-				Help = new string[]{ "Adds a new player, possibly whitlisting them" };
+				Help = new string[]{ "Adds and/or whitelists a player" };
 
 				AddParameters(
-					_ign, _invited, _website, _twitter, _github,
+					_ign, _whitelist, _website, _twitter, _github,
 					_twitch, _youtube, _donate, _patreon, _notes, _mods);
 			}
 
@@ -148,59 +147,80 @@ namespace obsidianUpdater.Actions
 				HandleParameters(args);
 
 				var data = ProgramData.Load();
-				if (GetPlayer(data, name) != null)
-					throw new InvalidOperationException(String.Format("Player '{0}' already exists.", name));
+				var player = GetPlayer(data, name);
 
-				data.Players += new Player {
-					Name = name,
-					InGameName = _ign.Value,
-					Invited = _invited.IsSet,
-					Website = _website.Value,
-					Twitter = _twitter.Value,
-					GitHub = _github.Value,
-					Twitch = _twitch.Value,
-					YouTube = _youtube.Value,
-					Donate = _donate.Value,
-					Notes = NullableCollection<string>.FromString(_notes.Value),
-					Mods = NullableCollection<string>.FromString(_mods.Value),
-				};
+				if (player != null) {
+					if (!_whitelist.IsSet)
+						throw new InvalidOperationException(String.Format("Player '{0}' already exists.", name));
+					if (!player.Invited)
+						throw new InvalidOperationException(String.Format("Player '{0}' already whitelisted.", name));
+					if (_website.IsSet || _twitter.IsSet || _github.IsSet || _twitch.IsSet || _youtube.IsSet ||
+					    _donate.IsSet || _patreon.IsSet || _notes.IsSet || _mods.IsSet)
+						throw new InvalidOperationException(String.Format("Player '{0}' already exists, use modify to change data.", name));
+
+					if (_ign.IsSet)
+						player.InGameName = _ign.Value;
+					player.Invited = false;
+				} else {
+					data.Players += new Player {
+						Name = name,
+						InGameName = _ign.Value,
+						Invited = !_whitelist.IsSet,
+						Website = _website.Value,
+						Twitter = _twitter.Value,
+						GitHub = _github.Value,
+						Twitch = _twitch.Value,
+						YouTube = _youtube.Value,
+						Donate = _donate.Value,
+						Notes = NullableCollection<string>.FromString(_notes.Value),
+						Mods = NullableCollection<string>.FromString(_mods.Value),
+					};
+				}
 				data.Save();
 
-				if (!_invited.IsSet)
+				if (_whitelist.IsSet)
 					TryWhitelist(_ign.Value ?? name);
 			}
 		}
 
 		public class Remove : ProgramAction
 		{
+			private ActionParameter _whitelist = new ActionParameter("whitelist", ParameterType.Enabled, alias: "w", help: "Only un-whitelist, but keep invited");
+
 			public Remove(ProgramAction parent) : base("remove", parent)
 			{
-				Help = new string[]{ "Removes a player, possibly un-whitlisting them" };
+				Help = new string[]{ "Removes and/or un-whitelists a player" };
+
+				AddParameters(_whitelist);
 			}
 
 			public override string GetShortHelp()
 			{
-				return base.GetShortHelp() + " <player>";
+				return base.GetShortHelp() + " <player> [-whitelist]";
 			}
 
 			public override void Handle(Stack<string> args)
 			{
 				if (args.Count < 1)
 					throw new InvalidUsageException(this, "Expected player name.");
-				if (args.Count > 1)
-					throw new InvalidUsageException(this, "Too many arguments.");
 
 				var name = args.Pop();
+				HandleParameters(args);
 
 				var data = ProgramData.Load();
 				var player = GetPlayer(data, name);
 				if (player == null)
 					throw new InvalidOperationException(String.Format("Player '{0}' doesn't exists.", name));
 
-				data.Players -= player;
+				if (_whitelist.IsSet) {
+					if (player.Invited)
+						throw new InvalidOperationException(String.Format("Player '{0}' isn't whitelisted.", name));
+					player.Invited = true;
+				} else
+					data.Players -= player;
 				data.Save();
 
-				if (!player.Invited)
+				if (!player.Invited || _whitelist.IsSet)
 					TryUnWhitelist(player.InGameName ?? player.Name);
 			}
 		}
@@ -280,57 +300,6 @@ namespace obsidianUpdater.Actions
 			private static NullableCollection<string> SetOrUnset(NullableCollection<string> current, ActionParameter parameter)
 			{
 				return (parameter.IsSet ? (parameter.HasValue ? NullableCollection<string>.FromString(parameter.Value) : null) : current);
-			}
-		}
-
-		public class Whitelist : ProgramAction
-		{
-			private ActionParameter _ign = new ActionParameter("ingame-name", ParameterType.Value, alias: "ign", help: "Sets the in-game name");
-			private ActionParameter _remove = new ActionParameter("remove", ParameterType.Enabled, help: "Removes instead of adds");
-
-			public Whitelist(ProgramAction parent) : base("whitelist", parent)
-			{
-				Help = new string[]{ "Whitelists or un-whitelists a player" };
-
-				AddParameters(_ign, _remove);
-			}
-
-			public override string GetShortHelp()
-			{
-				return base.GetShortHelp() + " <player> [parameters]";
-			}
-
-			public override void Handle(Stack<string> args)
-			{
-				if (args.Count < 1)
-					throw new InvalidUsageException(this, "Expected player name.");
-
-				var name = args.Pop();
-				HandleParameters(args);
-
-				var data = ProgramData.Load();
-				var player = GetPlayer(data, name);
-				if (player == null)
-					throw new InvalidOperationException(String.Format("Player '{0}' doesn't exists.", name));
-
-				if (_remove.IsSet) {
-					if (_ign.IsSet)
-						throw new InvalidOperationException("Can't use -ingame-name parameter together with -remove.");
-					if (player.Invited)
-						throw new InvalidOperationException(String.Format("Player '{0}' isn't whitelisted.", player.Name));
-
-					TryUnWhitelist(player.InGameName ?? player.Name);
-				} else {
-					if (!player.Invited)
-						throw new InvalidOperationException(String.Format("Player '{0}' is already whitelisted.", player.Name));
-
-					if (_ign.IsSet)
-						player.InGameName = _ign.Value;
-					TryWhitelist(player.InGameName ?? player.Name);
-				}
-
-				player.Invited = !player.Invited;
-				data.Save();
 			}
 		}
 	}
